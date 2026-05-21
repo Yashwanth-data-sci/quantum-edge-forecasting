@@ -12,7 +12,6 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Sleek metric card styling */
     div[data-testid="metric-container"] {
         background-color: #0c0d11;
         border: 1px solid #1f2330;
@@ -22,7 +21,6 @@ st.markdown("""
         box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.4);
     }
     
-    /* Pro Tab Styling */
     .stTabs [data-baseweb="tab-list"] { gap: 10px; }
     .stTabs [data-baseweb="tab"] { 
         height: 50px; 
@@ -33,7 +31,6 @@ st.markdown("""
         border-bottom: none;
     }
     
-    /* Highlight box for ROI */
     .roi-box {
         background-color: #0c0d11; 
         border: 1px solid #00E676; 
@@ -61,16 +58,14 @@ def load_forecast():
 @st.cache_data
 def load_history():
     try:
-        # Using the offline CSV to prevent API crashes during presentations
         df = pd.read_csv("Reliance_History.csv", parse_dates=True)
         if 'Date' in df.columns:
             df['Date'] = pd.to_datetime(df['Date'], utc=True)
             df.set_index('Date', inplace=True)
-        # Standardize timezone to match forecast
         df.index = df.index.tz_localize(None) 
         return df
     except:
-        st.error("⚠️ Error: 'Reliance_History.csv' not found. Please ensure it is in your GitHub folder.")
+        st.error("⚠️ Error: 'Reliance_History.csv' not found.")
         st.stop()
 
 forecast_df = load_forecast()
@@ -84,30 +79,23 @@ forecast_df.iloc[0, forecast_df.columns.get_loc('Estimated_Open')] = last_actual
 # Calculate Historical CAGR for Long Term Projections
 start_price = history_df['Close'].iloc[0]
 end_price = history_df['Close'].iloc[-1]
-years = len(history_df) / 252 # ~252 trading days in a year
+years = len(history_df) / 252 
 cagr = (end_price / start_price) ** (1 / years) - 1
 
-# --- 3. SIDEBAR CONTROLS ---
+# --- 3. SIDEBAR CONTROLS (SIMPLIFIED & PROFESSIONAL) ---
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/3256/3256083.png", width=70)
-    st.title("System Controls")
-    
-    selected_model = st.selectbox("Active Core Engine", ["LSTM (Project Oracle) - 3.69% MAPE", "XGBoost (Multivariate)", "Hybrid Ensemble"])
-    
-    st.markdown("### Market Simulation")
-    market_sentiment = st.select_slider(
-        "Inject Short-Term Sentiment",
-        options=["Severe Bear", "Bearish", "Neutral", "Bullish", "Aggressive Bull"],
-        value="Neutral"
-    )
-    
+    st.title("Quantum Edge AI")
     st.markdown("---")
-    st.markdown("*Authorized Personnel Only*\n\n**v8.0 (Stable) | Status: ONLINE**")
+    st.markdown("### Active Engine")
+    st.success("🟢 LSTM (Project Oracle)")
+    st.markdown("Model Accuracy (MAPE): **3.69%**")
+    st.markdown("---")
+    st.markdown("*Authorized Personnel Only*\n\n**v9.0 (Final) | Status: ONLINE**")
 
-# Apply Sentiment Math to Short Term Forecast
-multiplier = {"Severe Bear": 0.90, "Bearish": 0.95, "Neutral": 1.0, "Bullish": 1.05, "Aggressive Bull": 1.10}[market_sentiment]
-forecast_df['Adjusted_Close'] = forecast_df['Predicted_Close_Price'] * multiplier
-forecast_df['Adjusted_Open'] = forecast_df['Estimated_Open'] * multiplier
+# Set base predictions (Removed confusing sentiment multipliers)
+forecast_df['Adjusted_Close'] = forecast_df['Predicted_Close_Price']
+forecast_df['Adjusted_Open'] = forecast_df['Estimated_Open']
 
 # --- 4. MAIN DASHBOARD UI ---
 st.image("https://images.unsplash.com/photo-1642790106117-e829e14a795f?auto=format&fit=crop&q=80&w=2000", use_container_width=True)
@@ -132,8 +120,8 @@ with tab1:
     fig_future = go.Figure()
     fig_future.add_trace(go.Scatter(
         x=forecast_df.index, y=forecast_df['Adjusted_Close'], mode='lines+markers', name='AI Trajectory',
-        line=dict(color='#00E676' if multiplier >= 1 else '#FF3D00', width=3),
-        fill='tozeroy', fillcolor=f'rgba({0 if multiplier >= 1 else 255}, {230 if multiplier >= 1 else 61}, {118 if multiplier >= 1 else 0}, 0.1)'
+        line=dict(color='#00E676', width=3),
+        fill='tozeroy', fillcolor='rgba(0, 230, 118, 0.1)'
     ))
     fig_future.add_vline(x=selected_date, line_width=2, line_dash="dash", line_color="#888888")
     fig_future.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis_title="Trading Date", yaxis_title="Price (₹)", hovermode="x unified")
@@ -179,7 +167,7 @@ with tab3:
         low=history_df['Low'], close=history_df['Close'], name='Market Price'
     )])
     fig_hist.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False, hovermode="x unified", height=500)
-    fig_hist.update_xaxes(range=[history_df.index[-120], history_df.index[-1]]) # Show last 6 months visually
+    fig_hist.update_xaxes(range=[history_df.index[-120], history_df.index[-1]]) 
     st.plotly_chart(fig_hist, use_container_width=True)
 
 # --- TAB 4: LONG TERM WEALTH & SIP ---
@@ -193,7 +181,6 @@ with tab4:
     with col_lt2:
         lump_sum = st.number_input("Initial Lump Sum Investment (₹):", min_value=0, value=50000, step=10000)
         
-    # SIP & Lump Sum Math
     years_list = [1, 2, 3]
     monthly_rate = cagr / 12
     
@@ -202,9 +189,7 @@ with tab4:
     
     for y in years_list:
         months = y * 12
-        # Future Value of SIP
         fv_sip = sip_amount * (((1 + monthly_rate)**months - 1) / monthly_rate) * (1 + monthly_rate) if monthly_rate > 0 else sip_amount * months
-        # Future Value of Lump Sum
         fv_lump = lump_sum * ((1 + cagr)**y)
         
         total_invested = lump_sum + (sip_amount * months)
@@ -213,7 +198,6 @@ with tab4:
         invested_amounts.append(total_invested)
         projected_values.append(total_value)
 
-    # Display 1, 2, 3 Year Outputs
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
     
@@ -230,7 +214,6 @@ with tab4:
             </div>
             """, unsafe_allow_html=True)
 
-    # Visualizing the Wealth Generation
     st.markdown("<br>", unsafe_allow_html=True)
     fig_wealth = go.Figure()
     fig_wealth.add_trace(go.Bar(x=[f"Year {y}" for y in years_list], y=invested_amounts, name='Total Capital Invested', marker_color='#1f2330'))
