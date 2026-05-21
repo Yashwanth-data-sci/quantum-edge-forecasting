@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import yfinance as yf
 import numpy as np
 
 # --- 1. PAGE SETUP & ENTERPRISE CSS ---
@@ -46,7 +45,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. DATA LOADING ---
+# --- 2. DATA LOADING (BULLETPROOF OFFLINE MODE) ---
 @st.cache_data
 def load_forecast():
     try:
@@ -56,14 +55,23 @@ def load_forecast():
         df.set_index('Date', inplace=True)
         return df
     except:
-        st.error("⚠️ Please run the Jupyter Notebook to generate the 'Reliance_30_Day_Forecast.csv' file.")
+        st.error("⚠️ Error: 'Reliance_30_Day_Forecast.csv' not found.")
         st.stop()
 
 @st.cache_data
 def load_history():
-    # Pulling 5 years of data so we can calculate long-term historical CAGR
-    ticker = "RELIANCE.NS"
-    return yf.Ticker(ticker).history(period="5y")
+    try:
+        # Using the offline CSV to prevent API crashes during presentations
+        df = pd.read_csv("Reliance_History.csv", parse_dates=True)
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'], utc=True)
+            df.set_index('Date', inplace=True)
+        # Standardize timezone to match forecast
+        df.index = df.index.tz_localize(None) 
+        return df
+    except:
+        st.error("⚠️ Error: 'Reliance_History.csv' not found. Please ensure it is in your GitHub folder.")
+        st.stop()
 
 forecast_df = load_forecast()
 history_df = load_history()
@@ -76,7 +84,7 @@ forecast_df.iloc[0, forecast_df.columns.get_loc('Estimated_Open')] = last_actual
 # Calculate Historical CAGR for Long Term Projections
 start_price = history_df['Close'].iloc[0]
 end_price = history_df['Close'].iloc[-1]
-years = len(history_df) / 252 # 252 trading days in a year
+years = len(history_df) / 252 # ~252 trading days in a year
 cagr = (end_price / start_price) ** (1 / years) - 1
 
 # --- 3. SIDEBAR CONTROLS ---
@@ -94,7 +102,7 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    st.markdown("*Authorized Personnel Only*\n\n**v7.0 | Status: ONLINE**")
+    st.markdown("*Authorized Personnel Only*\n\n**v8.0 (Stable) | Status: ONLINE**")
 
 # Apply Sentiment Math to Short Term Forecast
 multiplier = {"Severe Bear": 0.90, "Bearish": 0.95, "Neutral": 1.0, "Bullish": 1.05, "Aggressive Bull": 1.10}[market_sentiment]
@@ -162,21 +170,22 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
 
-# --- TAB 3: LIVE MARKET DATA ---
+# --- TAB 3: TERMINAL HISTORY ---
 with tab3:
-    st.subheader("Terminal History (Live Data Feed)")
+    st.subheader("Terminal History (Offline Data Feed)")
+    st.markdown("Displaying cached 5-year historical asset data for context.")
     fig_hist = go.Figure(data=[go.Candlestick(
         x=history_df.index, open=history_df['Open'], high=history_df['High'],
         low=history_df['Low'], close=history_df['Close'], name='Market Price'
     )])
     fig_hist.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False, hovermode="x unified", height=500)
-    fig_hist.update_xaxes(range=[history_df.index[-120], history_df.index[-1]]) # Show last 6 months
+    fig_hist.update_xaxes(range=[history_df.index[-120], history_df.index[-1]]) # Show last 6 months visually
     st.plotly_chart(fig_hist, use_container_width=True)
 
-# --- TAB 4: LONG TERM WEALTH & SIP (NEW) ---
+# --- TAB 4: LONG TERM WEALTH & SIP ---
 with tab4:
     st.subheader("Multi-Year Wealth & SIP Projection")
-    st.markdown(f"Unlike the 30-day Deep Learning model, this engine projects 1 to 3-year timelines using institutional Compound Annual Growth Rates (CAGR). Based on the last 5 years of live data, Reliance's calculated CAGR is **{cagr*100:.2f}%**.")
+    st.markdown(f"Unlike the 30-day Deep Learning model, this engine projects 1 to 3-year timelines using institutional Compound Annual Growth Rates (CAGR). Based on the last 5 years of data, Reliance's calculated CAGR is **{cagr*100:.2f}%**.")
     
     col_lt1, col_lt2 = st.columns(2)
     with col_lt1:
